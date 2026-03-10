@@ -10,14 +10,11 @@ Give Claude ServiceNow domain expertise with guided builders and browser verific
 
 ## Installation
 
+Add the marketplace, then install:
+
 ```bash
+claude plugin marketplace add https://github.com/ThrownLemon/servicenow-plugin
 claude plugin install servicenow-plugin
-```
-
-Or from local path:
-
-```bash
-claude plugin install --path /path/to/servicenow-plugin
 ```
 
 ## Skills
