@@ -1,0 +1,10 @@
+{
+  "name": "servicenow-plugin",
+  "version": "0.1.0",
+  "description": "ServiceNow domain expertise: catalog builder, report builder, docs-first workflows with Playwright verification",
+  "author": {
+    "name": "Travis Winsor"
+  },
+  "repository": "https://github.com/ThrownLemon/servicenow-plugin",
+  "keywords": ["servicenow", "catalog", "report", "itsm"]
+}

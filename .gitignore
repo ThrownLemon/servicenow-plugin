@@ -1,0 +1,7 @@
+# Screenshots and temp files
+*.png
+/tmp/
+*.session.json
+
+# OS
+.DS_Store
