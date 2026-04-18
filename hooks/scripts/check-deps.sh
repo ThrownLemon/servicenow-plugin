@@ -9,7 +9,7 @@ warnings=""
 # Check servicenow-cli
 if ! command -v servicenow-cli &>/dev/null; then
   warnings="${warnings}⚠ servicenow-cli not found. Install it and run: servicenow-cli config\n"
-elif ! servicenow-cli info --json 2>/dev/null | grep -q '"configured":true'; then
+elif ! servicenow-cli info --json 2>/dev/null | grep -qE '"configured"[[:space:]]*:[[:space:]]*true'; then
   warnings="${warnings}⚠ servicenow-cli not configured. Run: servicenow-cli config\n"
 fi
 
