@@ -38,7 +38,7 @@ Ask one question at a time:
 Before creating anything:
 
 ```bash
-servicenow-cli updateset create --name "Catalog: <item_name> - <timestamp>"
+servicenow-cli updateset create "Catalog: <item_name> - <timestamp>"
 servicenow-cli updateset set-current <sys_id>
 ```
 
