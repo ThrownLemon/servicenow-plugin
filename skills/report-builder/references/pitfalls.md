@@ -1,5 +1,18 @@
 # Report Builder — Known Pitfalls & Workarounds
 
+<!--
+last-verified: 2026-04-20
+verified-against: ac3ptyltddemo11 (Zurich family, Yokohama-equivalent API)
+
+Each numbered pitfall below reflects a failure observed in production on
+this instance. When adding new entries, include a reproduction command or
+an error-text signature so future operators can match symptoms to fixes.
+If any listed system property or error text is no longer returned by the
+instance, mark the entry as superseded rather than deleting it — the fix
+may still be needed on older instances.
+-->
+
+
 Failure modes observed in production and their fixes. Check against this list when a newly-created report doesn't render.
 
 ## 1. Silently ignored field names

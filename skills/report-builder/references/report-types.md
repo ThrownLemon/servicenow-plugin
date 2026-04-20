@@ -1,5 +1,17 @@
 # ServiceNow `sys_report` Field Reference
 
+<!--
+last-verified: 2026-04-20
+verified-against: ac3ptyltddemo11 (Zurich family, Yokohama-equivalent API)
+verification: read existing working reports via `servicenow-cli table list sys_report --query "type=<type>^active=true" --fields sys_id,field,row,column,sumfield,interval`
+
+If the current date is more than 30 days past `last-verified`, validate at
+least one field name in this file against a known-working report on the
+target instance before trusting this reference. To re-verify, follow the
+instructions in the skill's pre-flight checklist.
+-->
+
+
 **Use these exact field names and values in the JSON payload** to `servicenow-cli report create`. ServiceNow silently accepts unknown fields and ignores them — misnamed fields **do not produce errors**, they produce broken reports. Always verify via a render check after creating.
 
 ## Field names per report type

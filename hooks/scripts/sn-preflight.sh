@@ -25,46 +25,40 @@ if echo "$command" | grep -q 'snow-docs'; then
   exit 0
 fi
 
-# Extract the subcommand (second token after servicenow-cli) and check for write verbs
-subcommand=$(echo "$command" | sed -n 's/.*servicenow-cli\s\+[a-z_-]*\s\+\([a-z_-]*\).*/\1/p')
+# Tokenize the command with awk — BSD sed on macOS doesn't grok `\s` or
+# `\+`. awk splits on whitespace and is portable across Linux/macOS.
+read -r _domain _subcommand _arg3 <<EOF
+$(echo "$command" | awk '{
+  for (i = 1; i <= NF; i++) if ($i == "servicenow-cli") { print $(i+1), $(i+2), $(i+3); exit }
+}')
+EOF
+
+# Check for write verbs (create, update, add-*, delete, order, post, put,
+# patch, deploy). Skip read-only verbs.
 WRITE_VERBS="^(create|update|add-|delete|order|post|put|patch|deploy)"
-if ! echo "$subcommand" | grep -qE "$WRITE_VERBS"; then
+if ! echo "${_subcommand:-}" | grep -qE "$WRITE_VERBS"; then
   exit 0
 fi
 
 # Map CLI domain+subcommand to ServiceNow table
 table=""
-if echo "$command" | grep -qE 'catalog\s+create\b'; then
-  table="sc_cat_item"
-elif echo "$command" | grep -qE 'catalog\s+add-variable\b'; then
-  table="item_option_new"
-elif echo "$command" | grep -qE 'catalog\s+add-choice\b'; then
-  table="question_choice"
-elif echo "$command" | grep -qE 'catalog\s+add-ui-policy\b'; then
-  table="catalog_ui_policy"
-elif echo "$command" | grep -qE 'catalog\s+add-ui-policy-action\b'; then
-  table="catalog_ui_policy_action"
-elif echo "$command" | grep -qE 'catalog\s+add-client-script\b'; then
-  table="catalog_script_client"
-elif echo "$command" | grep -qE 'catalog\s+create-category\b'; then
-  table="sc_category"
-elif echo "$command" | grep -qE 'report\s+create\b'; then
-  table="sys_report"
-elif echo "$command" | grep -qE 'table\s+create\s+'; then
-  # Extract table name from: servicenow-cli table create <table>
-  table=$(echo "$command" | sed -n 's/.*table\s\+create\s\+\([a-z_][a-z0-9_]*\).*/\1/p')
-elif echo "$command" | grep -qE 'incident\s+create\b'; then
-  table="incident"
-elif echo "$command" | grep -qE 'change\s+create\b'; then
-  table="change_request"
-fi
+case "${_domain}:${_subcommand}" in
+  catalog:create)                 table="sc_cat_item" ;;
+  catalog:add-variable)           table="item_option_new" ;;
+  catalog:add-choice)             table="question_choice" ;;
+  catalog:add-ui-policy)          table="catalog_ui_policy" ;;
+  catalog:add-ui-policy-action)   table="catalog_ui_policy_action" ;;
+  catalog:add-client-script)      table="catalog_script_client" ;;
+  catalog:create-category)        table="sc_category" ;;
+  report:create)                  table="sys_report" ;;
+  incident:create)                table="incident" ;;
+  change:create)                  table="change_request" ;;
+  table:create)                   table="${_arg3:-}" ;;
+esac
 
-# If no table identified, try domain name as table
-if [ -z "$table" ]; then
-  domain=$(echo "$command" | sed -n 's/.*servicenow-cli\s\+\([a-z_-]*\).*/\1/p')
-  if [ -n "$domain" ]; then
-    table="$domain"
-  fi
+# Fallback: treat the domain token as the table name
+if [ -z "$table" ] && [ -n "${_domain:-}" ]; then
+  table="${_domain}"
 fi
 
 # Exit if we still can't determine the table
@@ -85,19 +79,67 @@ if [ -f "$CACHE_FILE" ] && grep -q "^${table}$" "$CACHE_FILE" 2>/dev/null; then
   exit 0
 fi
 
-# Query snow-docs with 5-second timeout
-docs=$(timeout 5 snow-docs api "$table" --raw --limit 3 2>/dev/null) || true
+# Portable timeout wrapper — macOS doesn't ship with `timeout`.
+# Prefer GNU `timeout`, fall back to `gtimeout` (homebrew coreutils),
+# fall back to perl's alarm, fall back to no timeout (local FTS5 query
+# is fast; hooks.json already imposes a 10s ceiling).
+run_with_timeout() {
+  local secs="$1"
+  shift
+  if command -v timeout &>/dev/null; then
+    timeout "$secs" "$@"
+  elif command -v gtimeout &>/dev/null; then
+    gtimeout "$secs" "$@"
+  elif command -v perl &>/dev/null; then
+    perl -e 'alarm shift @ARGV; exec @ARGV' "$secs" "$@"
+  else
+    "$@"
+  fi
+}
 
-if [ -z "$docs" ]; then
-  exit 0
-fi
+# Query snow-docs — local FTS5 lookup, should complete in ms
+docs=$(run_with_timeout 5 snow-docs api "$table" --raw 2>/dev/null | head -40) || true
 
-# Record in cache
+# Map tables to the plugin skill reference that covers their gotchas
+# (admin tables like sys_report aren't in the developer portal index,
+# so we point Claude at local references instead).
+skill_ref=""
+case "$table" in
+  sys_report)
+    skill_ref="servicenow-plugin/skills/report-builder/references/report-types.md + pitfalls.md"
+    ;;
+  sc_cat_item|item_option_new|question_choice|catalog_ui_policy|catalog_ui_policy_action|catalog_script_client|sc_category|sc_catalog)
+    skill_ref="servicenow-plugin/skills/catalog-builder/references/dependency-chain.md + variable-type-mapping.md"
+    ;;
+esac
+
+# Record in cache so we only print this once per table per session
 echo "$table" >> "$CACHE_FILE"
 chmod 600 "$CACHE_FILE" 2>/dev/null || true
 
-# Output concise field summary for Claude
-echo "📚 snow-docs: Key fields for ${table}:"
-echo "$docs" | head -30
+# Output the preflight hint. Always emit something actionable, even when
+# snow-docs has no usable content — point Claude at the local skill refs.
+if [ -n "$docs" ]; then
+  cat <<HINT
+[snow-docs preflight] About to write to ${table}. Dev-portal docs excerpt:
+---
+${docs}
+---
+Run \`snow-docs api ${table}\` or \`snow-docs ask "<question>"\` for more.
+HINT
+else
+  cat <<HINT
+[snow-docs preflight] About to write to ${table}. Dev-portal docs have no
+direct entry for this admin table. Consult local skill references instead.
+HINT
+fi
+
+if [ -n "$skill_ref" ]; then
+  cat <<HINT
+Also check: \$CLAUDE_PLUGIN_ROOT/${skill_ref}
+— these encode field-name gotchas and failure signatures discovered in
+production that the developer portal does not document.
+HINT
+fi
 
 exit 0

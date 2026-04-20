@@ -7,6 +7,17 @@ description: This skill should be used when the user asks to "create a report", 
 
 Convert natural language descriptions into ServiceNow reports with pre-flight data validation, correct `sys_report` field mapping, and Playwright-based render verification.
 
+## Pre-flight checklist (run before step 1, no exceptions)
+
+Before writing anything to ServiceNow, confirm each of these in the current session:
+
+- [ ] **Read `references/report-types.md`** — covers correct `sys_report` column names per chart type
+- [ ] **Read `references/pitfalls.md`** — covers known failure signatures and fixes
+- [ ] **Check the `last-verified:` date at the top of each reference** — if older than 30 days, validate at least one field name against a known-working report on the instance (`servicenow-cli table list sys_report --query "type=<type>^active=true" --fields sys_id,field,row,column,sumfield,interval --limit 1 --json`) before trusting the reference
+- [ ] **Skim the `[snow-docs preflight]` hint** that the PreToolUse hook emits before your first `servicenow-cli report create`. If it's blank, run `snow-docs ask "<specific thing you need>"` manually
+
+If any check fails, stop and address it before proceeding. The skill does not work correctly on stale references — this is exactly the failure mode that shipped broken reports in prod.
+
 ## Workflow: Research → Plan → Execute → Verify → Hand off
 
 ### 1. Research
@@ -16,7 +27,7 @@ snow-docs ask "report types and configuration" --raw --max-tokens 2000
 snow-docs api "sys_report" --raw
 ```
 
-Read `references/report-types.md` and `references/pitfalls.md` — these encode field-name gotchas that ServiceNow's docs don't call out.
+> **Known limitation:** snow-docs indexes the ServiceNow developer portal, which documents scripting APIs but **not** admin-table column schemas like `sys_report`. For field names on admin tables, rely on `references/report-types.md` + `references/pitfalls.md` + inspection of an existing working report on the target instance.
 
 ### 2. Parse user intent
 
