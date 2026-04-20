@@ -32,7 +32,9 @@ if [ -z "$CONFIGURED_INSTANCE" ]; then
   exit 1
 fi
 
-URL_HOST=$(echo "$URL" | sed -n 's|https\?://\([^/]*\).*|\1|p')
+# BSD sed (macOS default) doesn't accept `\?` in basic regex — use sed -E
+# with POSIX extended regex for portability across Linux and macOS.
+URL_HOST=$(echo "$URL" | sed -E -n 's|https?://([^/]*).*|\1|p')
 EXPECTED_HOST="${CONFIGURED_INSTANCE}.service-now.com"
 
 if [ "$URL_HOST" != "$EXPECTED_HOST" ]; then
