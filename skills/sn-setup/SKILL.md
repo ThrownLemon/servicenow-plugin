@@ -27,7 +27,34 @@ servicenow-cli info --json
 
 If not configured: guide user to run `servicenow-cli config`
 
-### 2. snow-docs
+### 2. snc (ServiceNow official CLI)
+
+```bash
+"/Applications/ServiceNow CLI/bin/snc" version
+```
+
+If not found: "Install the ServiceNow CLI from https://developer.servicenow.com/dev.do#!/reference/next-experience/latest/cli/getting-started"
+
+If found, check that a default profile is configured against your instance:
+
+```bash
+"/Applications/ServiceNow CLI/bin/snc" configure profile list
+```
+
+If no default profile exists:
+```bash
+"/Applications/ServiceNow CLI/bin/snc" configure profile set \
+  --host https://<instance>.service-now.com \
+  --user admin
+# Prompts for password interactively
+```
+
+The `snc` profile must point at the **same instance** as `servicenow-cli`.
+Auth is stored separately in `~/.snc/` — changing one does not update the other.
+
+> **snc is optional for catalog/report work.** It is only required for `/ui-component` (building custom Now Experience components). Skip this step if the user doesn't need component development.
+
+### 3. snow-docs
 
 ```bash
 snow-docs --version
@@ -50,7 +77,7 @@ snow-docs ask "test query" --raw --max-tokens 100
 snow-docs api "incident" --raw --limit 1
 ```
 
-### 3. Playwright
+### 4. Playwright
 
 ```bash
 bunx playwright --version
@@ -62,7 +89,7 @@ If not installed:
 bunx playwright install chromium
 ```
 
-### 4. Connectivity Test
+### 5. Connectivity Test
 
 Test ServiceNow API access:
 
@@ -72,7 +99,7 @@ servicenow-cli table list sys_properties --limit 1
 
 If this fails, the instance URL or credentials are wrong. Guide user through `servicenow-cli config`.
 
-### 5. Update Set Binding Test
+### 6. Update Set Binding Test
 
 This test determines whether `updateset set-current` works on the user's instance.
 
@@ -105,7 +132,7 @@ If zero results: **binding doesn't work**. Record this:
 - Tell the user: "Update set binding via REST is not supported on your instance. Builder skills will use `updateset add-artifact` as fallback."
 - The builder skills will use `updateset add-artifact` after each create.
 
-### 6. Cleanup
+### 7. Cleanup
 
 Delete the test record and complete/delete the test update set:
 
@@ -118,9 +145,10 @@ servicenow-cli updateset complete <test_update_set_sys_id>
 
 Report all results:
 - servicenow-cli: ✓/✗
+- snc (optional): ✓/✗ / not installed
 - snow-docs: ✓/✗
 - Playwright: ✓/✗
 - API connectivity: ✓/✗
 - Update set binding: works / fallback needed
 
-"Setup complete. You can now use /catalog-builder and /report-builder."
+"Setup complete. You can now use /catalog-builder, /report-builder, and /ui-component."
