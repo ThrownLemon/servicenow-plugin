@@ -194,7 +194,10 @@ bash "${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}/scripts/sn-audit.sh" "playwright
 # Cleanup
 rm -f "$PLAYWRIGHT_SCRIPT"
 
-# Schedule screenshot cleanup (1 hour)
-(sleep 3600 && rm -f "$OUTPUT" 2>/dev/null) &
+# Schedule screenshot cleanup (1 hour). Fully detach so the cleanup subshell
+# doesn't keep the parent's process group alive — chained commands in an
+# agent pipeline would otherwise appear stuck waiting on this process.
+nohup bash -c "sleep 3600 && rm -f '$OUTPUT' 2>/dev/null" >/dev/null 2>&1 </dev/null &
+disown 2>/dev/null || true
 
 exit $EXIT_CODE

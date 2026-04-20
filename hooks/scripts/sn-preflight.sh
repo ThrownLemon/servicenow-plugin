@@ -120,7 +120,7 @@ chmod 600 "$CACHE_FILE" 2>/dev/null || true
 # Output the preflight hint. Always emit something actionable, even when
 # snow-docs has no usable content — point Claude at the local skill refs.
 if [ -n "$docs" ]; then
-  cat <<HINT
+  cat >&2 <<HINT
 [snow-docs preflight] About to write to ${table}. Dev-portal docs excerpt:
 ---
 ${docs}
@@ -128,14 +128,14 @@ ${docs}
 Run \`snow-docs api ${table}\` or \`snow-docs ask "<question>"\` for more.
 HINT
 else
-  cat <<HINT
+  cat >&2 <<HINT
 [snow-docs preflight] About to write to ${table}. Dev-portal docs have no
 direct entry for this admin table. Consult local skill references instead.
 HINT
 fi
 
 if [ -n "$skill_ref" ]; then
-  cat <<HINT
+  cat >&2 <<HINT
 Also check: \$CLAUDE_PLUGIN_ROOT/${skill_ref}
 — these encode field-name gotchas and failure signatures discovered in
 production that the developer portal does not document.
